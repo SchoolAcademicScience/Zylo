@@ -171,11 +171,6 @@
 
         // Login Button Click Event
         document.getElementById('login-btn').addEventListener('click', () => {
-            if (CLIENT_ID === '738f0dad1659440296e94d608d1a766b') {
-                alert("ERROR: You must edit the code and add your Spotify Client ID first!");
-                return;
-            }
-            
             const scopes = 'user-read-private user-read-email';
             const authUrl = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scopes)}`;
             
