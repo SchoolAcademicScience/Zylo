@@ -9,7 +9,7 @@
         body { background-color: #000; color: #fff; display: flex; height: 100vh; overflow: hidden; }
 
         /* =========================================
-           LOGIN VIEW (Default Screen)
+           LOGIN VIEW
            ========================================= */
         #login-view {
             width: 100%;
@@ -42,28 +42,24 @@
         .spotify-btn:hover { background-color: #1ed760; transform: scale(1.04); }
 
         /* =========================================
-           MAIN APP VIEW (Hidden until logged in)
+           MAIN APP VIEW
            ========================================= */
         #app-view {
-            display: none; /* STRICTLY HIDDEN UNTIL AUTHENTICATED */
+            display: none; 
             width: 100%;
             height: 100%;
         }
 
-        /* Sidebar */
         .sidebar { width: 240px; background-color: #000; padding: 24px 12px; display: flex; flex-direction: column; border-right: 1px solid #282828; }
         .logo { font-size: 24px; font-weight: bold; padding: 0 12px; margin-bottom: 18px; color: #1db954; }
         
-        /* Main Content */
         .main-content { flex: 1; background: linear-gradient(180deg, #212121 0%, #121212 100%); border-radius: 8px; margin: 8px 8px 90px 0; padding: 20px; overflow-y: auto; }
         
-        /* Search */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background-color: #121212; padding: 16px; border-radius: 8px; position: sticky; top: 0; z-index: 10; }
         .search-container { display: flex; gap: 10px; width: 100%; max-width: 400px; }
         .search-container input { flex: 1; padding: 12px 16px; border-radius: 20px; border: none; outline: none; background-color: #242424; color: white; font-size: 14px; }
         .search-container button { padding: 10px 20px; border-radius: 20px; border: none; background-color: #fff; color: #000; font-weight: bold; cursor: pointer; }
 
-        /* Grid */
         .cards-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 24px; }
         .card { background-color: #181818; padding: 16px; border-radius: 8px; transition: background-color 0.3s; cursor: pointer; }
         .card:hover { background-color: #282828; }
@@ -72,7 +68,6 @@
         .card p { font-size: 12px; color: #b3b3b3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .status-msg { color: #b3b3b3; text-align: center; margin-top: 40px; font-size: 16px; grid-column: 1 / -1; }
 
-        /* Player */
         .player { position: fixed; bottom: 0; left: 0; right: 0; height: 90px; background-color: #181818; border-top: 1px solid #282828; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 20; }
         .now-playing { display: flex; align-items: center; gap: 14px; width: 30%; }
         .now-playing img { width: 56px; height: 56px; border-radius: 4px; display: none; }
@@ -140,11 +135,9 @@
 
     <script>
         // =========================================================
-        // 🚨 REQUIRED CONFIGURATION 
+        // CONFIGURATION 
         // =========================================================
         const CLIENT_ID = '738f0dad1659440296e94d608d1a766b'; 
-        
-        // Custom URL for your GitHub Pages!
         const REDIRECT_URI = 'https://schoolacademicscience.github.io/Zylo/'; 
         // =========================================================
 
@@ -153,28 +146,81 @@
         const loginView = document.getElementById('login-view');
         const appView = document.getElementById('app-view');
 
-        // Check if we just came back from Spotify Authentication
-        const hash = window.location.hash;
-        if (hash) {
-            const urlParams = new URLSearchParams(hash.substring(1));
-            accessToken = urlParams.get('access_token');
+        // PKCE Cryptography Functions
+        function generateRandomString(length) {
+            const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            const values = crypto.getRandomValues(new Uint8Array(length));
+            return values.reduce((acc, x) => acc + possible[x % possible.length], "");
+        }
+
+        async function sha256(plain) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(plain);
+            const hash = await crypto.subtle.digest('SHA-256', data);
+            return btoa(String.fromCharCode(...new Uint8Array(hash)))
+                .replace(/=/g, '')
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_');
+        }
+
+        // Check if returning from Spotify with a code
+        const urlParams = new URLSearchParams(window.location.search);
+        let code = urlParams.get('code');
+
+        if (code) {
+            const codeVerifier = localStorage.getItem('code_verifier');
             
-            if (accessToken) {
-                // HIDE the login screen, SHOW the app screen
-                loginView.style.display = 'none';
-                appView.style.display = 'flex';
-                
-                // Remove token from the URL bar so it looks clean
-                window.history.pushState("", document.title, window.location.pathname + window.location.search);
-            }
+            const body = new URLSearchParams({
+                grant_type: 'authorization_code',
+                code: code,
+                redirect_uri: REDIRECT_URI,
+                client_id: CLIENT_ID,
+                code_verifier: codeVerifier
+            });
+
+            fetch('https://accounts.spotify.com/api/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('HTTP status ' + response.status);
+                return response.json();
+            })
+            .then(data => {
+                accessToken = data.access_token;
+                if (accessToken) {
+                    loginView.style.display = 'none';
+                    appView.style.display = 'flex';
+                    window.history.pushState("", document.title, window.location.pathname);
+                }
+            })
+            .catch(error => {
+                console.error('Error trading code for token:', error);
+                alert("Authentication failed. Please log in again.");
+                window.history.pushState("", document.title, window.location.pathname);
+            });
         }
 
         // Login Button Click Event
-        document.getElementById('login-btn').addEventListener('click', () => {
-            const scopes = 'user-read-private user-read-email';
-            const authUrl = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scopes)}`;
+        document.getElementById('login-btn').addEventListener('click', async () => {
+            const codeVerifier = generateRandomString(64);
+            window.localStorage.setItem('code_verifier', codeVerifier);
+            const codeChallenge = await sha256(codeVerifier);
+
+            const scope = 'user-read-private user-read-email';
+            const authUrl = new URL("https://accounts.spotify.com/authorize");
             
-            window.location.href = authUrl;
+            authUrl.search = new URLSearchParams({
+                response_type: 'code',
+                client_id: CLIENT_ID,
+                scope: scope,
+                redirect_uri: REDIRECT_URI,
+                code_challenge_method: 'S256',
+                code_challenge: codeChallenge
+            }).toString();
+            
+            window.location.href = authUrl.toString();
         });
 
         // Search API Logic
