@@ -231,7 +231,7 @@
             resultsContainer.innerHTML = '<div class="status-msg">Searching Spotify...</div>';
             
             try {
-                const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=20`, {
+                const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`, {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
 
@@ -242,9 +242,32 @@
                 }
 
                 const data = await response.json();
-                renderResults(data.tracks.items);
+
+                if (!response.ok) {
+                    console.error('Spotify error:', response.status, data);
+                    resultsContainer.innerHTML = `<div class="status-msg">Spotify error ${response.status}: ${data.error?.message || 'unknown error'}</div>`;
+                    return;
+                }
+
+                renderResults(data.tracks?.items || []);
             } catch (error) {
+                console.error('Search failed:', error);
                 resultsContainer.innerHTML = '<div class="status-msg">Failed to connect to Spotify.</div>';
+            }
+        }
+
+        // Spotify no longer provides preview_url for most tracks,
+        // so fall back to a free iTunes 30-second preview when it's missing.
+        async function findPreview(track) {
+            if (track.preview_url) return track.preview_url;
+            try {
+                const term = `${track.name} ${track.artists[0].name}`;
+                const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=1`);
+                const data = await res.json();
+                return data.results?.[0]?.previewUrl || null;
+            } catch (e) {
+                console.error('iTunes preview lookup failed:', e);
+                return null;
             }
         }
 
@@ -268,11 +291,12 @@
                     <p>${track.artists.map(a => a.name).join(', ')}</p>
                 `;
                 
-                card.addEventListener('click', () => {
-                    if (track.preview_url) {
-                        loadTrack(track.name, track.artists[0].name, coverArt, track.preview_url);
+                card.addEventListener('click', async () => {
+                    const previewUrl = await findPreview(track);
+                    if (previewUrl) {
+                        loadTrack(track.name, track.artists[0].name, coverArt, previewUrl);
                     } else {
-                        alert(`Sorry, Spotify does not provide a 30-second audio preview for "${track.name}". Try another track.`);
+                        alert(`Sorry, no 30-second preview is available for "${track.name}". Try another track.`);
                     }
                 });
                 
