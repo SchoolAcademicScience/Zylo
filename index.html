@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spotify API Clone - Client Login Required</title>
+    <title>Zylo - Spotify Web Player</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: #000; color: #fff; display: flex; height: 100vh; overflow: hidden; }
@@ -48,7 +48,6 @@
             display: none; /* STRICTLY HIDDEN UNTIL AUTHENTICATED */
             width: 100%;
             height: 100%;
-            display: none; /* Changed by JS upon login */
         }
 
         /* Sidebar */
@@ -91,7 +90,7 @@
 
     <!-- 1. LOGIN VIEW -->
     <div id="login-view">
-        <h1>Spotify Player</h1>
+        <h1>Zylo Player</h1>
         <p>Authentication is strictly required to search and play music. Please connect your Spotify account to continue.</p>
         <button id="login-btn" class="spotify-btn">Log in with Spotify</button>
     </div>
@@ -99,7 +98,7 @@
     <!-- 2. MAIN APP VIEW -->
     <div id="app-view">
         <div class="sidebar">
-            <div class="logo">Spotify Player</div>
+            <div class="logo">Zylo Player</div>
             <div style="color:#b3b3b3; font-size:12px; padding: 0 12px;">✅ Authenticated</div>
         </div>
 
@@ -130,7 +129,7 @@
                     <div class="progress-bar-bg" id="progressBg">
                         <div class="progress-bar-fill" id="progressFill"></div>
                     </div>
-                    <span id="totalTime">0:30</span> <!-- Previews are 30s -->
+                    <span id="totalTime">0:30</span>
                 </div>
             </div>
             <div class="player-right"></div>
@@ -141,12 +140,12 @@
 
     <script>
         // =========================================================
-        // 🚨 REQUIRED CONFIGURATION - YOU MUST FILL THESE IN!
+        // 🚨 REQUIRED CONFIGURATION 
         // =========================================================
         const CLIENT_ID = '738f0dad1659440296e94d608d1a766b'; 
         
-        // This must be the EXACT URL you use to view this HTML file in your browser
-        const REDIRECT_URI = window.location.href.split('#')[0]; 
+        // Custom URL for your GitHub Pages!
+        const REDIRECT_URI = 'https://schoolacademicscience.github.io/Zylo/'; 
         // =========================================================
 
         let accessToken = null;
@@ -177,16 +176,15 @@
                 return;
             }
             
-            // Redirects user directly to Spotify's official login page
             const scopes = 'user-read-private user-read-email';
             const authUrl = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scopes)}`;
             
             window.location.href = authUrl;
         });
 
-        // Search API Logic (Only runs if user is authenticated)
+        // Search API Logic
         async function searchSpotify(query) {
-            if (!accessToken) return; // Prevent unauthorized requests
+            if (!accessToken) return;
             
             const resultsContainer = document.getElementById('resultsContainer');
             resultsContainer.innerHTML = '<div class="status-msg">Searching Spotify...</div>';
@@ -229,7 +227,6 @@
                     <p>${track.artists.map(a => a.name).join(', ')}</p>
                 `;
                 
-                // Play music on click
                 card.addEventListener('click', () => {
                     if (track.preview_url) {
                         loadTrack(track.name, track.artists[0].name, coverArt, track.preview_url);
